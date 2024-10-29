@@ -1,0 +1,993 @@
+---
+openapi: 3.0.3
+info:
+    title: salmon-donate-backend API
+    version: 0.1.0-SNAPSHOT
+paths:
+    /api/v1/donation/donate/{username}:
+        get:
+            tags:
+                - Donation Resource
+            summary: Get donation data by username
+            description: Fetches the donation data for a specific user.
+            parameters:
+                - name: username
+                  in: path
+                  required: true
+                  schema:
+                      type: string
+            responses:
+                '200':
+                    description: Donation data retrieved successfully
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DonationData'
+                '404':
+                    description: User not found
+                '500':
+                    description: Server error
+        post:
+            tags:
+                - Donation Resource
+            summary: Make a donation
+            description: Processes a donation for the specified user.
+            parameters:
+                - name: username
+                  in: path
+                  required: true
+                  schema:
+                      type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/DonationRequest'
+            responses:
+                '201':
+                    description: Donation successfully processed
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/InvoiceToPayDTO'
+                '400':
+                    description: Invalid donation request
+                '500':
+                    description: Internal server error
+    /api/v1/donation/donations:
+        get:
+            tags:
+                - Donation Resource
+            summary: Retrieve paginated donations for the authenticated user
+            description: Fetches a list of donations with pagination for the authenticated
+                user.
+            parameters:
+                - name: limit
+                  in: query
+                  schema:
+                      format: int32
+                      type: integer
+                - name: page
+                  in: query
+                  schema:
+                      format: int32
+                      type: integer
+            responses:
+                '200':
+                    description: Donations retrieved successfully
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DonationDTOForReceiverResponse'
+                '404':
+                    description: User not found
+                '500':
+                    description: Server error
+                '401':
+                    description: Not Authorized
+                '403':
+                    description: Not Allowed
+            security:
+                - SecurityScheme: []
+    /api/v1/donation/notification:
+        get:
+            tags:
+                - Donation Resource
+            summary: Subscribe to donation notifications via Server-Sent Events (SSE)
+            description: This endpoint provides real-time donation notifications for the
+                authenticated user via SSE.
+            parameters:
+                - name: token
+                  in: query
+                  required: true
+                  schema:
+                      $ref: '#/components/schemas/UUID'
+            responses:
+                '200':
+                    description: "SSE subscription established, real-time notifications will\
+                        \ be streamed."
+                    content:
+                        text/event-stream:
+                            schema:
+                                type: object
+                                properties:
+                                    id:
+                                        description: Unique event identifier
+                                        type: string
+                                    name:
+                                        description: "Name of the event (e.g., 'keepalive', 'new-donation')"
+                                        enum:
+                                            - keepalive
+                                            - new-donation
+                                        type: string
+                                    comment:
+                                        description: Optional comment for the event
+                                        type: string
+                                    data:
+                                        description: Actual data of the event
+                                        type: string
+                                        oneOf:
+                                            - $ref: '#/components/schemas/DonationDTO'
+                                            - $ref: '#/components/schemas/Unit'
+                '401':
+                    description: Authentication failed
+                '500':
+                    description: Server error while establishing SSE connection
+    /api/v1/donation/notification/test:
+        post:
+            tags:
+                - Donation Resource
+            summary: Send a test donation
+            description: This endpoint allows sending a test donation.
+            responses:
+                '200':
+                    description: Test donation sent successfully.
+                '400':
+                    description: Invalid user ID.
+                '401':
+                    description: Unauthorized access.
+                '403':
+                    description: Not Allowed
+            security:
+                - SecurityScheme: []
+    /api/v1/payment/{paymentId}/donation:
+        get:
+            tags:
+                - Payment Resource
+            summary: Retrieve donation invoice by payment ID
+            description: Fetches the details of a donation invoice associated with the given
+                payment ID.
+            parameters:
+                - name: paymentId
+                  in: path
+                  required: true
+                  schema:
+                      $ref: '#/components/schemas/UUID'
+            responses:
+                '200':
+                    description: Donation invoice retrieved successfully.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/InvoiceToPayDTO'
+                '400':
+                    description: Invalid payment ID
+                '404':
+                    description: Not found
+                '500':
+                    description: Server error
+    /api/v1/payment/{paymentId}/status:
+        get:
+            tags:
+                - Payment Resource
+            summary: Get payment status updates via SSE
+            description: Subscribe to real-time payment status updates for a specific payment
+                ID using Server-Sent Events (SSE).
+            parameters:
+                - name: paymentId
+                  in: path
+                  required: true
+                  schema:
+                      $ref: '#/components/schemas/UUID'
+            responses:
+                '200':
+                    description: "SSE subscription established, real-time payment status updates\
+                        \ will be streamed."
+                    content:
+                        text/event-stream:
+                            schema:
+                                type: object
+                                properties:
+                                    id:
+                                        description: Unique event identifier
+                                        type: string
+                                    name:
+                                        description: Type of sse event
+                                        enum:
+                                            - payment-changed-status
+                                            - keepalive
+                                        type: string
+                                    data:
+                                        description: Details of the payment status update
+                                        type: string
+                                        oneOf:
+                                            - $ref: '#/components/schemas/InvoiceDTO'
+                                            - $ref: '#/components/schemas/Unit'
+                '400':
+                    description: Invalid payment ID
+                '404':
+                    description: Not found
+                '500':
+                    description: Server error while establishing SSE connection
+    /api/v1/stats/donation:
+        get:
+            tags:
+                - Stats Resource
+            summary: Retrieve donation statistics by period
+            description: Fetches donation statistics for the authenticated user based on
+                the specified period.
+            parameters:
+                - name: period
+                  in: query
+                  required: true
+                  schema:
+                      $ref: '#/components/schemas/StatsPeriod'
+            responses:
+                '200':
+                    description: Notification token retrieved successfully
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DonationStatsPeriodResponse'
+                '401':
+                    description: Unauthorized access
+                '500':
+                    description: Internal server error
+                '403':
+                    description: Not Allowed
+            security:
+                - SecurityScheme: []
+    /api/v1/user/profile:
+        get:
+            tags:
+                - User Resource
+            summary: Get the profile data for the authenticated user
+            description: Fetches the profile data for the user identified by the JWT token.
+            responses:
+                '200':
+                    description: Profile data retrieved successfully
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ProfileDataResponse'
+                '401':
+                    description: Unauthorized access
+                '403':
+                    description: Not Allowed
+            security:
+                - SecurityScheme: []
+        put:
+            tags:
+                - User Resource
+            summary: Update the profile data for the authenticated user
+            description: This endpoint allows an authenticated user to update their profile
+                information.
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/ProfileDataUpdateRequest'
+            responses:
+                '200':
+                    description: Profile data updated successfully
+                '400':
+                    description: Invalid request body
+                '401':
+                    description: Unauthorized access
+                '500':
+                    description: Internal server error
+                '403':
+                    description: Not Allowed
+            security:
+                - SecurityScheme: []
+    /api/v1/user/profile/avatar:
+        put:
+            tags:
+                - User Resource
+            summary: Update the profile avatar for the authenticated user
+            description: This endpoint allows an authenticated user to upload a new profile
+                avatar.
+            requestBody:
+                content:
+                    multipart/form-data:
+                        schema:
+                            type: object
+                            properties:
+                                avatar:
+                                    $ref: '#/components/schemas/UploadItemSchema'
+            responses:
+                '200':
+                    description: Avatar updated successfully
+                '400':
+                    description: Invalid request body
+                '401':
+                    description: Unauthorized access
+                '500':
+                    description: Internal server error
+                '403':
+                    description: Not Allowed
+            security:
+                - SecurityScheme: []
+    /api/v1/user/profile/donation_data:
+        get:
+            tags:
+                - User Resource
+            summary: Get the donation data for the authenticated user
+            description: Fetches the donation-related data for the user identified by the
+                JWT token.
+            responses:
+                '200':
+                    description: Donation data retrieved successfully
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DonationProfileDataResponse'
+                '401':
+                    description: Unauthorized access
+                '404':
+                    description: User not found
+                '500':
+                    description: Internal server error
+                '403':
+                    description: Not Allowed
+            security:
+                - SecurityScheme: []
+        put:
+            tags:
+                - User Resource
+            summary: Update the donation data for the authenticated user
+            description: Updates the donation-related data for the user identified by the
+                JWT token.
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UpdateDonationProfileDataRequest'
+            responses:
+                '200':
+                    description: Donation data updated successfully
+                '400':
+                    description: Invalid request body
+                '401':
+                    description: Unauthorized access
+                '500':
+                    description: Internal server error
+                '403':
+                    description: Not Allowed
+            security:
+                - SecurityScheme: []
+    /api/v1/user/profile/donation_data/xmr:
+        put:
+            tags:
+                - User Resource
+            summary: Update the XMR donation data for the authenticated user
+            description: Updates the XMR donation-related data for the user identified by
+                the JWT token.
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UpdateXMRDataRequest'
+            responses:
+                '200':
+                    description: XMR Donation data updated successfully
+                '400':
+                    description: Invalid request body
+                '401':
+                    description: Unauthorized access
+                '500':
+                    description: Internal server error
+                '403':
+                    description: Not Allowed
+            security:
+                - SecurityScheme: []
+    /api/v1/user/profile/notification:
+        get:
+            tags:
+                - User Resource
+            summary: Get the user's notification token
+            description: Retrieve the notification token associated with the current user.
+            responses:
+                '200':
+                    description: Notification token retrieved successfully
+                    content:
+                        text/plain:
+                            schema:
+                                type: string
+                '401':
+                    description: Unauthorized access
+                '500':
+                    description: Internal server error
+                '403':
+                    description: Not Allowed
+            security:
+                - SecurityScheme: []
+        put:
+            tags:
+                - User Resource
+            summary: Regenerate the user's notification token
+            description: Regenerate a new notification token for the current user.
+            responses:
+                '200':
+                    description: Notification token regenerated successfully
+                    content:
+                        text/plain:
+                            schema:
+                                type: string
+                '401':
+                    description: Unauthorized access
+                '500':
+                    description: Internal server error
+                '403':
+                    description: Not Allowed
+            security:
+                - SecurityScheme: []
+    /api/v1/user/profile/regional:
+        get:
+            tags:
+                - User Resource
+            summary: Retrieve regional settings for the user
+            description: Fetches the regional settings data for the authenticated user.
+            responses:
+                '200':
+                    description: Regional Settings data retrieved successfully
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/RegionalProfileDataResponse'
+                '400':
+                    description: Invalid request body
+                '401':
+                    description: Unauthorized access
+                '500':
+                    description: Internal server error
+                '403':
+                    description: Not Allowed
+            security:
+                - SecurityScheme: []
+        put:
+            tags:
+                - User Resource
+            summary: Update regional settings for the user
+            description: Updates the regional settings data for the authenticated user.
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/RegionalProfileDataRequest'
+            responses:
+                '200':
+                    description: Regional Settings data updated successfully
+                '400':
+                    description: Invalid request body
+                '401':
+                    description: Unauthorized access
+                '500':
+                    description: Internal server error
+                '403':
+                    description: Not Allowed
+            security:
+                - SecurityScheme: []
+    /api/v1/webhook/keycloak_event_webhook:
+        post:
+            tags:
+                - Web Hook Resource
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/KeycloakEventRequest'
+            responses:
+                '200':
+                    description: OK
+components:
+    schemas:
+        CoinType:
+            enum:
+                - XMR
+                - BTC
+                - LTC
+                - ETH
+                - TON
+            type: string
+        ConfirmationType:
+            enum:
+                - UNCONFIRMED
+                - PARTIALLY_CONFIRMED
+                - CONFIRMED
+            type: string
+        CryptoKeysData:
+            required:
+                - xmr
+            type: object
+            properties:
+                xmr:
+                    $ref: '#/components/schemas/XmrKeysData'
+        CryptoType:
+            enum:
+                - XMR
+            type: string
+        CurrencyType:
+            enum:
+                - USD
+            type: string
+        DonationDTO:
+            required:
+                - from
+                - coin
+            type: object
+            properties:
+                from:
+                    type: string
+                message:
+                    type: string
+                    nullable: true
+                amount:
+                    format: double
+                    type: number
+                coin:
+                    $ref: '#/components/schemas/CoinType'
+        DonationDTOForReceiver:
+            required:
+                - from
+                - createdAt
+            type: object
+            properties:
+                from:
+                    type: string
+                message:
+                    type: string
+                    nullable: true
+                amount:
+                    format: double
+                    type: number
+                coin:
+                    type: string
+                    allOf:
+                        - $ref: '#/components/schemas/CoinType'
+                    nullable: true
+                createdAt:
+                    $ref: '#/components/schemas/ZonedDateTime'
+        DonationDTOForReceiverResponse:
+            required:
+                - data
+            type: object
+            properties:
+                page:
+                    format: int32
+                    type: integer
+                limit:
+                    format: int32
+                    type: integer
+                totalCount:
+                    format: int32
+                    type: integer
+                data:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/DonationDTOForReceiver'
+        DonationData:
+            required:
+                - firstName
+                - lastName
+                - acceptedCrypto
+            type: object
+            properties:
+                firstName:
+                    type: string
+                lastName:
+                    type: string
+                avatarUrl:
+                    type: string
+                    nullable: true
+                bio:
+                    type: string
+                    nullable: true
+                acceptedCrypto:
+                    uniqueItems: true
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/CryptoType'
+        DonationProfileDataResponse:
+            required:
+                - minAmountCurrency
+                - confirmationType
+                - cryptoKeysData
+            type: object
+            properties:
+                minAmount:
+                    format: double
+                    type: number
+                minAmountCurrency:
+                    $ref: '#/components/schemas/CurrencyType'
+                timeout:
+                    type: integer
+                confirmationType:
+                    $ref: '#/components/schemas/ConfirmationType'
+                cryptoKeysData:
+                    $ref: '#/components/schemas/CryptoKeysData'
+        DonationRequest:
+            required:
+                - from
+                - coin
+            type: object
+            properties:
+                from:
+                    type: string
+                message:
+                    type: string
+                    nullable: true
+                coin:
+                    $ref: '#/components/schemas/CryptoType'
+        DonationStatsPeriodResponse:
+            required:
+                - top3DonationsByAmount
+                - period
+                - amountCurrency
+            type: object
+            properties:
+                donationCount:
+                    format: int32
+                    type: integer
+                amount:
+                    format: double
+                    type: number
+                avgAmount:
+                    format: double
+                    type: number
+                top3DonationsByAmount:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/DonationDTOForReceiver'
+                period:
+                    $ref: '#/components/schemas/StatsPeriod'
+                amountCurrency:
+                    $ref: '#/components/schemas/CurrencyType'
+        FileUpload:
+            type: object
+        InvoiceDTO:
+            required:
+                - id
+                - cryptoAddress
+                - coin
+                - createdAt
+                - status
+                - expiresAt
+            type: object
+            properties:
+                id:
+                    type: string
+                cryptoAddress:
+                    type: string
+                coin:
+                    $ref: '#/components/schemas/CoinType'
+                requiredAmount:
+                    format: double
+                    type: number
+                actualAmount:
+                    format: double
+                    type: number
+                    nullable: true
+                confirmationsRequired:
+                    format: int32
+                    type: integer
+                createdAt:
+                    $ref: '#/components/schemas/LocalDateTime'
+                confirmedAt:
+                    type: string
+                    allOf:
+                        - $ref: '#/components/schemas/LocalDateTime'
+                    nullable: true
+                status:
+                    $ref: '#/components/schemas/InvoiceStatusType'
+                expiresAt:
+                    $ref: '#/components/schemas/LocalDateTime'
+                txId:
+                    type: string
+                    nullable: true
+        InvoiceStatusType:
+            enum:
+                - PENDING
+                - PENDING_MEMPOOL
+                - EXPIRED
+                - CONFIRMED
+            type: string
+        InvoiceToPayDTO:
+            required:
+                - paymentId
+                - cryptoAddress
+                - coin
+            type: object
+            properties:
+                paymentId:
+                    type: string
+                cryptoAddress:
+                    type: string
+                coin:
+                    $ref: '#/components/schemas/CoinType'
+                requiredAmount:
+                    format: double
+                    type: number
+                timeout:
+                    format: int64
+                    type: integer
+                confirmationsRequired:
+                    format: int32
+                    type: integer
+        KeycloakEventRequest:
+            type: object
+            properties:
+                time:
+                    format: int64
+                    type: integer
+                    nullable: true
+                type:
+                    type: string
+                    allOf:
+                        - $ref: '#/components/schemas/KeycloakEventType'
+                    nullable: true
+                realmId:
+                    type: string
+                    allOf:
+                        - $ref: '#/components/schemas/UUID'
+                    nullable: true
+                clientId:
+                    type: string
+                    nullable: true
+                userId:
+                    type: string
+                    allOf:
+                        - $ref: '#/components/schemas/UUID'
+                    nullable: true
+                ipAddress:
+                    type: string
+                    nullable: true
+                error:
+                    type: string
+                    nullable: true
+                details:
+                    type: object
+                    additionalProperties:
+                        type: string
+                    nullable: true
+        KeycloakEventType:
+            enum:
+                - AUTHREQID_TO_TOKEN
+                - AUTHREQID_TO_TOKEN_ERROR
+                - CLIENT_DELETE
+                - CLIENT_DELETE_ERROR
+                - CLIENT_INFO
+                - CLIENT_INFO_ERROR
+                - CLIENT_INITIATED_ACCOUNT_LINKING
+                - CLIENT_INITIATED_ACCOUNT_LINKING_ERROR
+                - CLIENT_LOGIN
+                - CLIENT_LOGIN_ERROR
+                - CLIENT_REGISTER
+                - CLIENT_REGISTER_ERROR
+                - CLIENT_UPDATE
+                - CLIENT_UPDATE_ERROR
+                - CODE_TO_TOKEN
+                - CODE_TO_TOKEN_ERROR
+                - CUSTOM_REQUIRED_ACTION
+                - CUSTOM_REQUIRED_ACTION_ERROR
+                - DELETE_ACCOUNT
+                - DELETE_ACCOUNT_ERROR
+                - EXECUTE_ACTION_TOKEN
+                - EXECUTE_ACTION_TOKEN_ERROR
+                - EXECUTE_ACTIONS
+                - EXECUTE_ACTIONS_ERROR
+                - FEDERATED_IDENTITY_LINK
+                - FEDERATED_IDENTITY_LINK_ERROR
+                - GRANT_CONSENT
+                - GRANT_CONSENT_ERROR
+                - IDENTITY_PROVIDER_FIRST_LOGIN
+                - IDENTITY_PROVIDER_FIRST_LOGIN_ERROR
+                - IDENTITY_PROVIDER_LINK_ACCOUNT
+                - IDENTITY_PROVIDER_LINK_ACCOUNT_ERROR
+                - IDENTITY_PROVIDER_LOGIN
+                - IDENTITY_PROVIDER_LOGIN_ERROR
+                - IDENTITY_PROVIDER_POST_LOGIN
+                - IDENTITY_PROVIDER_POST_LOGIN_ERROR
+                - IDENTITY_PROVIDER_RESPONSE
+                - IDENTITY_PROVIDER_RESPONSE_ERROR
+                - IDENTITY_PROVIDER_RETRIEVE_TOKEN
+                - IDENTITY_PROVIDER_RETRIEVE_TOKEN_ERROR
+                - IMPERSONATE
+                - IMPERSONATE_ERROR
+                - INTROSPECT_TOKEN
+                - INTROSPECT_TOKEN_ERROR
+                - INVALID_SIGNATURE
+                - INVALID_SIGNATURE_ERROR
+                - LOGIN
+                - LOGIN_ERROR
+                - LOGOUT
+                - LOGOUT_ERROR
+                - OAUTH2_DEVICE_AUTH
+                - OAUTH2_DEVICE_AUTH_ERROR
+                - OAUTH2_DEVICE_CODE_TO_TOKEN
+                - OAUTH2_DEVICE_CODE_TO_TOKEN_ERROR
+                - OAUTH2_DEVICE_VERIFY_USER_CODE
+                - OAUTH2_DEVICE_VERIFY_USER_CODE_ERROR
+                - PERMISSION_TOKEN
+                - PERMISSION_TOKEN_ERROR
+                - PUSHED_AUTHORIZATION_REQUEST
+                - PUSHED_AUTHORIZATION_REQUEST_ERROR
+                - REFRESH_TOKEN
+                - REFRESH_TOKEN_ERROR
+                - REGISTER
+                - REGISTER_ERROR
+                - REGISTER_NODE
+                - REGISTER_NODE_ERROR
+                - REMOVE_FEDERATED_IDENTITY
+                - REMOVE_FEDERATED_IDENTITY_ERROR
+                - REMOVE_TOTP
+                - REMOVE_TOTP_ERROR
+                - RESET_PASSWORD
+                - RESET_PASSWORD_ERROR
+                - RESTART_AUTHENTICATION
+                - RESTART_AUTHENTICATION_ERROR
+                - REVOKE_GRANT
+                - REVOKE_GRANT_ERROR
+                - SEND_IDENTITY_PROVIDER_LINK
+                - SEND_IDENTITY_PROVIDER_LINK_ERROR
+                - SEND_RESET_PASSWORD
+                - SEND_RESET_PASSWORD_ERROR
+                - SEND_VERIFY_EMAIL
+                - SEND_VERIFY_EMAIL_ERROR
+                - TOKEN_EXCHANGE
+                - TOKEN_EXCHANGE_ERROR
+                - UNREGISTER_NODE
+                - UNREGISTER_NODE_ERROR
+                - UPDATE_CONSENT
+                - UPDATE_CONSENT_ERROR
+                - UPDATE_EMAIL
+                - UPDATE_EMAIL_ERROR
+                - UPDATE_PASSWORD
+                - UPDATE_PASSWORD_ERROR
+                - UPDATE_PROFILE
+                - UPDATE_PROFILE_ERROR
+                - UPDATE_TOTP
+                - UPDATE_TOTP_ERROR
+                - USER_INFO_REQUEST
+                - USER_INFO_REQUEST_ERROR
+                - VALIDATE_ACCESS_TOKEN
+                - VALIDATE_ACCESS_TOKEN_ERROR
+                - VERIFY_EMAIL
+                - VERIFY_EMAIL_ERROR
+                - VERIFY_PROFILE
+                - VERIFY_PROFILE_ERROR
+            type: string
+        LocalDateTime:
+            format: date-time
+            type: string
+            example: 2022-03-10T12:15:50
+        ProfileDataResponse:
+            type: object
+            properties:
+                avatarUrl:
+                    type: string
+                    nullable: true
+                bio:
+                    type: string
+                    nullable: true
+        ProfileDataUpdateRequest:
+            required:
+                - firstName
+                - lastName
+            type: object
+            properties:
+                bio:
+                    type: string
+                    nullable: true
+                firstName:
+                    type: string
+                lastName:
+                    type: string
+        RegionalProfileDataRequest:
+            required:
+                - timeZoneName
+                - currency
+            type: object
+            properties:
+                timeZoneName:
+                    type: string
+                currency:
+                    $ref: '#/components/schemas/CurrencyType'
+        RegionalProfileDataResponse:
+            required:
+                - timeZone
+                - availableTimeZones
+                - currency
+            type: object
+            properties:
+                timeZone:
+                    $ref: '#/components/schemas/TimeZone'
+                availableTimeZones:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/TimeZone'
+                currency:
+                    $ref: '#/components/schemas/CurrencyType'
+        StatsPeriod:
+            enum:
+                - MONTH
+                - ALL_TIME
+            type: string
+        TimeZone:
+            required:
+                - name
+            type: object
+            properties:
+                name:
+                    type: string
+                offset:
+                    format: int32
+                    type: integer
+        UUID:
+            format: uuid
+            pattern: '[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}'
+            type: string
+        Unit:
+            type: object
+        UpdateDonationProfileDataRequest:
+            required:
+                - confirmationType
+            type: object
+            properties:
+                minAmount:
+                    format: double
+                    type: number
+                timeout:
+                    type: integer
+                confirmationType:
+                    $ref: '#/components/schemas/ConfirmationType'
+        UpdateXMRDataRequest:
+            required:
+                - keys
+            type: object
+            properties:
+                enabled:
+                    type: boolean
+                keys:
+                    $ref: '#/components/schemas/XmrKeys'
+        UploadItemSchema:
+            format: binary
+            type: string
+        XmrKeys:
+            required:
+                - priv
+                - pub
+            type: object
+            properties:
+                priv:
+                    type: string
+                pub:
+                    type: string
+        XmrKeysData:
+            required:
+                - keys
+            type: object
+            properties:
+                keys:
+                    $ref: '#/components/schemas/XmrKeys'
+                enabled:
+                    type: boolean
+        ZonedDateTime:
+            format: date-time
+            type: string
+            example: 2022-03-10T12:15:50-04:00
+    securitySchemes:
+        SecurityScheme:
+            type: openIdConnect
+            description: Authentication
+            openIdConnectUrl: http://localhost:9080/realms/salmon-donate/.well-known/openid-configuration

@@ -1,0 +1,67 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+    .text-balance {
+        text-wrap: balance;
+    }
+}
+
+@layer base {
+    :root {
+        --background: 4 0% 95%;
+        --foreground: 4 0% 10%;
+        --card: 4 0% 90%;
+        --card-foreground: 4 0% 15%;
+        --popover: 4 0% 95%;
+        --popover-foreground: 4 95% 10%;
+        --primary: 4 86.1% 57.6%;
+        --primary-foreground: 0 0% 100%;
+        --secondary: 4 10% 70%;
+        --secondary-foreground: 0 0% 0%;
+        --muted: -34 10% 85%;
+        --muted-foreground: 4 0% 35%;
+        --accent: -34 10% 80%;
+        --accent-foreground: 4 0% 15%;
+        --destructive: 0 50% 33%;
+        --destructive-foreground: 4 0% 90%;
+        --border: 4 20% 50%;
+        --input: 4 20% 33%;
+        --ring: 4 86.1% 57.6%;
+        --radius: 0.75rem;
+    }
+    .dark {
+        --background: 4 10% 10%;
+        --foreground: 4 0% 90%;
+        --card: 4 0% 10%;
+        --card-foreground: 4 0% 90%;
+        --popover: 4 10% 5%;
+        --popover-foreground: 4 0% 90%;
+        --primary: 4 86.1% 57.6%;
+        --primary-foreground: 0 0% 100%;
+        --secondary: 4 10% 20%;
+        --secondary-foreground: 0 0% 100%;
+        --muted: -34 10% 25%;
+        --muted-foreground: 4 0% 60%;
+        --accent: -34 10% 25%;
+        --accent-foreground: 4 0% 90%;
+        --destructive: 0 50% 33%;
+        --destructive-foreground: 4 0% 90%;
+        --border: 4 20% 33%;
+        --input: 4 20% 33%;
+        --ring: 4 86.1% 57.6%;
+        --radius: 0.75rem;
+    }
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+    body {
+        @apply bg-background text-foreground;
+    }
+}
