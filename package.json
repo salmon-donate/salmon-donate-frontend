@@ -29,7 +29,7 @@
         "arctic": "^1.9.2",
         "async-mutex": "^0.5.0",
         "axios": "^1.7.7",
-        "bson": "^6.8.0",
+        "bson": "^6.9.0",
         "class-variance-authority": "^0.7.0",
         "clsx": "^2.1.1",
         "eventsource": "^2.0.2",
